@@ -1,12 +1,5 @@
 // server.js
-// Supabase PostgreSQL + Firebase Auth
-
-// Force IPv4 ONLY to fix ENETUNREACH on Render (IPv6 not supported for Supabase)
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
-
-// Additional IPv4 enforcement for pg module
-process.env.NODE_OPTIONS = '--dns-result-order=ipv4first';
+// PostgreSQL Database + Firebase Auth
 
 require("dotenv").config();
 const express = require("express");
@@ -27,15 +20,11 @@ const PORT = process.env.PORT || 8000;
 // Multer setup for in-memory file uploads
 const upload = multer({ storage: multer.memoryStorage() });
 
-// ===== SUPABASE POSTGRESQL CONNECTION =====
-// Explicit configuration to force IPv4 and avoid ENETUNREACH errors
+// ===== POSTGRESQL CONNECTION =====
+// Uses DATABASE_URL from environment or falls back to local PostgreSQL
 const pool = new Pool({
-  user: 'postgres',
-  password: 'Har20050927Haha',
-  host: 'db.wwdidwkcqicvaithslfl.supabase.co',
-  port: 5432,
-  database: 'postgres',
-  ssl: { rejectUnauthorized: false },
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/alumni_db',
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
   max: 10,
@@ -43,8 +32,8 @@ const pool = new Pool({
 
 // Test connection
 pool.query("SELECT NOW()")
-  .then(() => console.log("✅ Connected to Supabase PostgreSQL"))
-  .catch((err) => console.error("❌ Supabase connection failed:", err.message));
+  .then(() => console.log("✅ Connected to PostgreSQL Database"))
+  .catch((err) => console.error("❌ PostgreSQL connection failed:", err.message));
 
 // Middleware
 app.use(cors());
@@ -119,9 +108,9 @@ const JWT_SECRET = "supersecretkey";
         salary TEXT,
         type TEXT,
         source TEXT,
-        "applyLink" TEXT UNIQUE,
-        "postedDate" TEXT,
-        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        applylink TEXT UNIQUE,
+        posteddate TEXT,
+        createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Jobs table ready");
@@ -132,13 +121,13 @@ const JWT_SECRET = "supersecretkey";
         title TEXT,
         organizer TEXT,
         date TEXT,
-        "endDate" TEXT,
+        enddate TEXT,
         description TEXT,
         link TEXT UNIQUE,
         location TEXT,
         type TEXT,
         source TEXT,
-        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Events table ready");
@@ -346,9 +335,9 @@ async function syncJobs() {
   for (const job of jobs) {
     try {
       await pool.query(
-        `INSERT INTO jobs (title, company, location, salary, type, source, "applyLink", "postedDate")
+        `INSERT INTO jobs (title, company, location, salary, type, source, applylink, posteddate)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT("applyLink") DO NOTHING`,
+         ON CONFLICT(applylink) DO NOTHING`,
         [job.title, job.company, job.location, job.salary, job.type, job.source, job.applyLink, job.postedDate]
       );
       count++;
@@ -368,7 +357,7 @@ async function syncEvents() {
     for (const event of events) {
       try {
         await pool.query(
-          `INSERT INTO events (title, organizer, date, "endDate", description, link, location, type, source)
+          `INSERT INTO events (title, organizer, date, enddate, description, link, location, type, source)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            ON CONFLICT(link) DO NOTHING`,
           [event.title, event.organizer, event.date, event.endDate, event.description, event.link, event.location, event.type, event.source]

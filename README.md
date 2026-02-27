@@ -41,10 +41,10 @@ A comprehensive full-stack web application for managing college placement activi
 ### Backend
 - Node.js
 - Express.js
-- SQLite3
-- PostgreSQL (pg) adapter
+- PostgreSQL (with pg adapter)
 - JWT Authentication
 - Bcrypt for password hashing
+- Cron jobs for auto-sync
 
 ### External Services
 - Puppeteer (web scraping)
@@ -54,6 +54,7 @@ A comprehensive full-stack web application for managing college placement activi
 ## 📋 Prerequisites
 
 - Node.js (v14 or higher)
+- PostgreSQL (v12 or higher)
 - npm or yarn
 - Git
 
@@ -76,19 +77,59 @@ npm install
 Create a `.env` file in the backend directory:
 
 ```env
+# PostgreSQL Database Connection
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/alumni_db
+
+# JWT Secret
 JWT_SECRET=your_jwt_secret_key_here
+
+# Server Port
 PORT=8000
+
+# Hugging Face API (optional, for resume analysis)
 HUGGINGFACE_API_KEY=your_huggingface_api_key
+
+# Email Configuration (optional)
+SMTP_EMAIL=your_email@gmail.com
+SMTP_PASSWORD=your_app_password
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+COLLEGE_NAME=Your College Name
 ```
 
-### 3. Frontend Setup
+### 3. Database Setup
+
+**Option A: Local PostgreSQL**
+```bash
+# Install PostgreSQL from https://www.postgresql.org/download/
+
+# Create database
+psql -U postgres
+CREATE DATABASE alumni_db;
+\q
+
+# Tables will be created automatically when you start the server
+```
+
+**Option B: Cloud PostgreSQL (Render, Supabase, Neon)**
+- See [DATABASE_SETUP.md](./DATABASE_SETUP.md) for detailed instructions
+- Set DATABASE_URL environment variable
+
+### 4. Frontend Setup
 
 ```bash
 cd ../frontend
 npm install
 ```
 
-### 4. Add Demo Data (Optional)
+### 5. Frontend Setup
+
+```bash
+cd ../frontend
+npm install
+```
+
+### 6. Add Demo Data (Optional)
 
 ```bash
 cd ../backend
@@ -236,7 +277,7 @@ SSH-FINAL-PROTOTYPE/
 
 - Some job scraping APIs may have rate limits
 - Puppeteer requires additional setup on some systems
-- SQLite limitations for concurrent writes
+- PostgreSQL must be running for the application to work
 
 ## 🚧 Future Enhancements
 

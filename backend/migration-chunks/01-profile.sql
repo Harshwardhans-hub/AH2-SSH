@@ -1,7 +1,7 @@
 BEGIN;
 
 -- SQLite to PostgreSQL Migration SQL
--- Generated: 2026-02-27T08:24:04.298Z
+-- Generated: 2026-02-27T08:35:11.973Z
 -- Run this in Supabase SQL Editor
 
 

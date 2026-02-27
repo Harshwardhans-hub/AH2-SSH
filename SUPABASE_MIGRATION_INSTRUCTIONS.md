@@ -20,12 +20,20 @@ The complete SQL file is too large for Supabase SQL Editor. Use one of these met
 
 ## METHOD 1: Use Split Migration Files (RECOMMENDED)
 
-The migration has been split into 28 smaller files in `backend/migration-chunks/`
+The migration has been split into 29 files in `backend/migration-chunks/`
 
 ### Steps:
+
+#### STEP 0: Create Tables First (REQUIRED!)
 1. Go to https://wwdidwkcqicvaithslfl.supabase.co
 2. Open **SQL Editor**
-3. Run files **in order** (they are numbered):
+3. Open `backend/migration-chunks/00-create-schema.sql`
+4. Copy all contents and paste into SQL Editor
+5. Click **Run** - this creates all 18 tables
+6. Wait for success message
+
+#### STEP 1-28: Import Data
+Run files **in order** (they are numbered):
    - `01-profile.sql` (4 rows)
    - `02-communities.sql` (1 row)
    - `03-jobs-part1.sql` through `25-jobs.sql` (2,265 rows total)
@@ -33,7 +41,7 @@ The migration has been split into 28 smaller files in `backend/migration-chunks/
    - `27-applications.sql` (3 rows)
    - `28-student_profiles.sql` (2 rows)
 
-4. For each file:
+For each file:
    - Open the file in a text editor
    - Copy all contents
    - Paste into Supabase SQL Editor

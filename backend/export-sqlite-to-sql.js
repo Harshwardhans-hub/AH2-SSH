@@ -38,10 +38,12 @@ async function exportTable(tableName, stream) {
     
     for (const row of rows) {
       const columns = Object.keys(row).filter(col => col !== 'id');
+      // Convert column names to lowercase for PostgreSQL compatibility
+      const lowerColumns = columns.map(col => col.toLowerCase());
       const values = columns.map(col => escapeString(row[col])).join(', ');
       
       stream.write(
-        `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${values}) ON CONFLICT DO NOTHING;\n`
+        `INSERT INTO ${tableName} (${lowerColumns.join(', ')}) VALUES (${values}) ON CONFLICT DO NOTHING;\n`
       );
     }
 
