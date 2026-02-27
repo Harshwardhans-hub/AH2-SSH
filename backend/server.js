@@ -1,5 +1,5 @@
 // server.js
-// Scraper integrated
+// Supabase PostgreSQL + Firebase Auth
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
@@ -14,48 +14,26 @@ const { extractTextFromPDF, analyzeResumeWithAI } = require("./services/resumeSe
 const { Pool } = require("pg");
 
 const app = express();
-const PORT = 8000;
+const PORT = process.env.PORT || 8000;
 
 // Multer setup for in-memory file uploads
 const upload = multer({ storage: multer.memoryStorage() });
 
-const sqlite3 = require("sqlite3").verbose();
-const path = require("path");
+// ===== SUPABASE POSTGRESQL CONNECTION =====
+// Set SUPABASE_URL in your .env file with your Supabase connection string
+// Format: postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+const pool = new Pool({
+  connectionString: process.env.SUPABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
 
-// SQLite database
-const dbPath = path.join(__dirname, "alumni_db.sqlite");
-const db = new sqlite3.Database(dbPath);
-
-// Wrapper to mimic pg pool.query
-const pool = {
-  query: (text, params) => {
-    return new Promise((resolve, reject) => {
-      // Convert $1, $2, etc to ? for SQLite
-      const sql = text.replace(/\$\d+/g, "?");
-
-      if (sql.trim().toUpperCase().startsWith("SELECT")) {
-        db.all(sql, params, (err, rows) => {
-          if (err) reject(err);
-          else resolve({ rows });
-        });
-      } else {
-        db.run(sql, params, function (err) {
-          if (err) reject(err);
-          else {
-            // If it's an INSERT with RETURNING, we might need a follow up or just return the id
-            // For this project, we'll try to handle the RETURNING part by querying if needed, 
-            // but let's see if we can simplify.
-            resolve({ rows: [{ id: this.lastID }], lastID: this.lastID });
-          }
-        });
-      }
-    });
-  },
-};
-
+// Test connection
+pool.query("SELECT NOW()")
+  .then(() => console.log("✅ Connected to Supabase PostgreSQL"))
+  .catch((err) => console.error("❌ Supabase connection failed:", err.message));
 
 // Middleware
-app.use(cors()); // Allow all for local development to avoid network errors
+app.use(cors());
 app.use(express.json());
 
 // JWT secret
@@ -66,7 +44,7 @@ const JWT_SECRET = "supersecretkey";
   try {
     await pool.query(
       `CREATE TABLE IF NOT EXISTS profile (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
         role VARCHAR(20) NOT NULL DEFAULT 'student',
@@ -76,31 +54,31 @@ const JWT_SECRET = "supersecretkey";
         phone VARCHAR(20),
         password VARCHAR(255),
         login_count INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Profile table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS communities (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name VARCHAR(100) UNIQUE NOT NULL,
         description TEXT,
         category VARCHAR(50) DEFAULT 'General',
         password VARCHAR(255),
         cover_image VARCHAR(500),
         created_by INT REFERENCES profile(id),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Communities table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS community_members (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         community_id INT REFERENCES communities(id),
         user_id INT REFERENCES profile(id),
-        joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(community_id, user_id)
       )`
     );
@@ -108,52 +86,52 @@ const JWT_SECRET = "supersecretkey";
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS community_posts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         community_id INT REFERENCES communities(id),
         user_id INT REFERENCES profile(id),
         content TEXT NOT NULL,
         post_type VARCHAR(50) DEFAULT 'post',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Community Posts table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS jobs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         title TEXT,
         company TEXT,
         location TEXT,
         salary TEXT,
         type TEXT,
         source TEXT,
-        applyLink TEXT UNIQUE,
-        postedDate TEXT,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        "applyLink" TEXT UNIQUE,
+        "postedDate" TEXT,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Jobs table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         title TEXT,
         organizer TEXT,
         date TEXT,
-        endDate TEXT,
+        "endDate" TEXT,
         description TEXT,
         link TEXT UNIQUE,
         location TEXT,
         type TEXT,
         source TEXT,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Events table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS caf_forms (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         college_id INT REFERENCES profile(id),
         company_name VARCHAR(200) NOT NULL,
         company_email VARCHAR(100),
@@ -164,90 +142,90 @@ const JWT_SECRET = "supersecretkey";
         salary_package VARCHAR(100),
         application_deadline DATE,
         status VARCHAR(50) DEFAULT 'pending',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ CAF Forms table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS companies (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name VARCHAR(200) NOT NULL,
         email VARCHAR(100),
         phone VARCHAR(20),
         website VARCHAR(200),
         industry VARCHAR(100),
         description TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Companies table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS documents (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         title VARCHAR(200) NOT NULL,
         description TEXT,
         file_url VARCHAR(500),
         uploaded_by INT REFERENCES profile(id),
         document_type VARCHAR(50),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Documents table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS applications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         student_id INT REFERENCES profile(id),
         company_name VARCHAR(200) NOT NULL,
         role VARCHAR(200) NOT NULL,
-        applied_date DATE DEFAULT (date('now')),
+        applied_date DATE DEFAULT CURRENT_DATE,
         status VARCHAR(50) DEFAULT 'applied',
         location VARCHAR(200),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Applications table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS student_profiles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         student_id INT REFERENCES profile(id) UNIQUE,
-        resume_uploaded BOOLEAN DEFAULT 0,
+        resume_uploaded BOOLEAN DEFAULT false,
         resume_url VARCHAR(500),
         skills TEXT,
         course VARCHAR(100),
         profile_completion INT DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Student Profiles table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS placement_events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         title VARCHAR(200) NOT NULL,
         description TEXT,
         event_type VARCHAR(50),
         event_date DATE,
         event_time TIME,
         location VARCHAR(200),
-        is_online BOOLEAN DEFAULT 0,
+        is_online BOOLEAN DEFAULT false,
         organizer_id INT REFERENCES profile(id),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Placement Events table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS notifications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INT REFERENCES profile(id),
         title VARCHAR(200) NOT NULL,
         message TEXT,
-        is_read BOOLEAN DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        is_read BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Notifications table ready");
@@ -255,7 +233,7 @@ const JWT_SECRET = "supersecretkey";
     // Placement Tracking Tables
     await pool.query(
       `CREATE TABLE IF NOT EXISTS student_placements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         student_id INT UNIQUE REFERENCES profile(id),
         cgpa DECIMAL(3,2),
         eligibility_status VARCHAR(50) DEFAULT 'Eligible',
@@ -264,17 +242,17 @@ const JWT_SECRET = "supersecretkey";
         offer_count INT DEFAULT 0,
         package_offered DECIMAL(10,2),
         graduation_year INT,
-        is_placed BOOLEAN DEFAULT 0,
-        placement_date DATETIME,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        is_placed BOOLEAN DEFAULT false,
+        placement_date TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Student Placements table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS company_drives (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         company_name VARCHAR(200) NOT NULL,
         job_role VARCHAR(200),
         package_offered DECIMAL(10,2),
@@ -286,15 +264,15 @@ const JWT_SECRET = "supersecretkey";
         students_selected INT DEFAULT 0,
         drive_status VARCHAR(50) DEFAULT 'Upcoming',
         college_id INT REFERENCES profile(id),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Company Drives table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS offer_letters (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         student_id INT REFERENCES profile(id),
         company_name VARCHAR(200) NOT NULL,
         offer_type VARCHAR(50) DEFAULT 'Full-time',
@@ -302,40 +280,40 @@ const JWT_SECRET = "supersecretkey";
         file_url TEXT,
         verification_status VARCHAR(50) DEFAULT 'Pending',
         verified_by INT REFERENCES profile(id),
-        verification_date DATETIME,
+        verification_date TIMESTAMP,
         rejection_reason TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Offer Letters table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS internships (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         student_id INT REFERENCES profile(id),
         company_name VARCHAR(200) NOT NULL,
         stipend DECIMAL(10,2),
         start_date DATE,
         end_date DATE,
-        has_ppo BOOLEAN DEFAULT 0,
-        ppo_converted BOOLEAN DEFAULT 0,
+        has_ppo BOOLEAN DEFAULT false,
+        ppo_converted BOOLEAN DEFAULT false,
         ppo_package DECIMAL(10,2),
         internship_status VARCHAR(50) DEFAULT 'Ongoing',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     );
     console.log("✅ Internships table ready");
 
     await pool.query(
       `CREATE TABLE IF NOT EXISTS drive_applications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         drive_id INT REFERENCES company_drives(id),
         student_id INT REFERENCES profile(id),
         application_status VARCHAR(50) DEFAULT 'Applied',
-        interview_date DATETIME,
-        is_selected BOOLEAN DEFAULT 0,
+        interview_date TIMESTAMP,
+        is_selected BOOLEAN DEFAULT false,
         offer_package DECIMAL(10,2),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(drive_id, student_id)
       )`
     );
@@ -354,9 +332,9 @@ async function syncJobs() {
   for (const job of jobs) {
     try {
       await pool.query(
-        `INSERT INTO jobs (title, company, location, salary, type, source, applyLink, postedDate)
+        `INSERT INTO jobs (title, company, location, salary, type, source, "applyLink", "postedDate")
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT(applyLink) DO NOTHING`,
+         ON CONFLICT("applyLink") DO NOTHING`,
         [job.title, job.company, job.location, job.salary, job.type, job.source, job.applyLink, job.postedDate]
       );
       count++;
@@ -376,7 +354,7 @@ async function syncEvents() {
     for (const event of events) {
       try {
         await pool.query(
-          `INSERT INTO events (title, organizer, date, endDate, description, link, location, type, source)
+          `INSERT INTO events (title, organizer, date, "endDate", description, link, location, type, source)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            ON CONFLICT(link) DO NOTHING`,
           [event.title, event.organizer, event.date, event.endDate, event.description, event.link, event.location, event.type, event.source]
@@ -508,6 +486,110 @@ app.post("/auth/login", async (req, res) => {
     console.error("Login error:", err);
     res.status(500).json({ error: err.message || "Login failed" });
   }
+});
+
+// ===== UNIFIED FIREBASE LOGIN (Handles both Email/Password & Google) =====
+app.post("/auth/firebase-login", async (req, res) => {
+  try {
+    const { name, email, uid, photoURL, role, college, pass_out_year, department, phone } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Missing email from Firebase" });
+    }
+
+    const selectedRole = role || "student";
+    const userName = name || email.split("@")[0];
+
+    // Check if user already exists
+    const existingUser = await pool.query("SELECT * FROM profile WHERE email=$1", [email]);
+
+    let user;
+
+    if (existingUser.rows.length > 0) {
+      // Existing user — log them in
+      user = existingUser.rows[0];
+
+      // Update any missing profile data if provided
+      const updates = [];
+      const params = [];
+      let paramIndex = 1;
+
+      if (college && !user.college) {
+        updates.push(`college = $${paramIndex++}`);
+        params.push(college);
+      }
+      if (department && !user.department) {
+        updates.push(`department = $${paramIndex++}`);
+        params.push(department);
+      }
+      if (phone && !user.phone) {
+        updates.push(`phone = $${paramIndex++}`);
+        params.push(phone);
+      }
+      if (pass_out_year && !user.pass_out_year) {
+        updates.push(`pass_out_year = $${paramIndex++}`);
+        params.push(pass_out_year);
+      }
+
+      // Always increment login count
+      updates.push(`login_count = COALESCE(login_count, 0) + 1`);
+
+      if (updates.length > 0) {
+        params.push(user.id);
+        await pool.query(
+          `UPDATE profile SET ${updates.join(", ")} WHERE id = $${paramIndex}`,
+          params
+        );
+      }
+
+      // Re-fetch the updated user
+      const updatedUser = await pool.query("SELECT * FROM profile WHERE id=$1", [user.id]);
+      user = updatedUser.rows[0];
+    } else {
+      // New user — auto-register
+      const placeholderPassword = await bcrypt.hash(uid + Date.now(), 10);
+
+      await pool.query(
+        `INSERT INTO profile (name, email, role, college, pass_out_year, department, phone, password, login_count)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1)`,
+        [userName, email, selectedRole, college || null, pass_out_year || null, department || null, phone || null, placeholderPassword]
+      );
+
+      const newUserResult = await pool.query("SELECT * FROM profile WHERE email=$1", [email]);
+      user = newUserResult.rows[0];
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        college: user.college,
+        pass_out_year: user.pass_out_year,
+        department: user.department,
+        phone: user.phone,
+        login_count: user.login_count || 1,
+        photoURL: photoURL || null,
+      },
+    });
+  } catch (err) {
+    console.error("Firebase login error:", err);
+    res.status(500).json({ error: err.message || "Firebase login failed" });
+  }
+});
+
+// Alias for backward compatibility
+app.post("/auth/google-login", (req, res) => {
+  req.url = "/auth/firebase-login";
+  app.handle(req, res);
 });
 
 // ===== FETCH PROFILE =====
