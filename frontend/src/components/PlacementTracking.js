@@ -142,6 +142,7 @@ function PlacementTracking() {
               <th>CGPA</th>
               <th>Eligibility</th>
               <th>Companies Applied</th>
+              <th>Applied To</th>
               <th>Current Status</th>
               <th>Offer Count</th>
               <th>Package (LPA)</th>
@@ -151,7 +152,7 @@ function PlacementTracking() {
           <tbody>
             {filteredStudents.length === 0 ? (
               <tr>
-                <td colSpan="9" style={{textAlign: 'center', padding: '2rem'}}>
+                <td colSpan="10" style={{textAlign: 'center', padding: '2rem'}}>
                   No students found
                 </td>
               </tr>
@@ -167,6 +168,11 @@ function PlacementTracking() {
                     </span>
                   </td>
                   <td>{student.companies_applied || 0}</td>
+                  <td>
+                    <div className="companies-list" title={student.companies_list || "No applications yet"}>
+                      {student.companies_list || "No applications yet"}
+                    </div>
+                  </td>
                   <td>{getStatusBadge(student.current_status || "Not Applied")}</td>
                   <td>{student.offer_count || 0}</td>
                   <td>₹ {student.package_offered || 0}</td>

@@ -257,3 +257,25 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Companies List Column */
+.companies-list {
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: #555;
+  cursor: help;
+}
+
+.companies-list:hover {
+  white-space: normal;
+  overflow: visible;
+  background: #f8f9fa;
+  padding: 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  position: relative;
+  z-index: 10;
+}
