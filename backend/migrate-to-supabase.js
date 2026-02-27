@@ -3,6 +3,7 @@
 // Force IPv4 DNS resolution
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
+process.env.NODE_OPTIONS = '--dns-result-order=ipv4first';
 
 const sqlite3 = require("sqlite3").verbose();
 const { Pool } = require("pg");
@@ -13,17 +14,13 @@ require("dotenv").config();
 const sqliteDbPath = path.join(__dirname, "alumni_db.sqlite");
 const sqliteDb = new sqlite3.Database(sqliteDbPath);
 
-// PostgreSQL connection (Supabase)
+// PostgreSQL connection (Supabase) - Using connection string for better compatibility
 const pgPool = new Pool({
-  user: 'postgres',
-  password: 'Har20050927Haha',
-  host: 'db.wwdidwkcqicvaithslfl.supabase.co',
-  port: 5432,
-  database: 'postgres',
+  connectionString: 'postgresql://postgres:Har20050927Haha@db.wwdidwkcqicvaithslfl.supabase.co:5432/postgres',
   ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: 30000,
   idleTimeoutMillis: 30000,
-  max: 10,
+  max: 5,
 });
 
 // Helper functions
