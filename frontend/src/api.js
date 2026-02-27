@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
+  // Use deployed URL in production, localhost in development
   baseURL: process.env.REACT_APP_API_URL || "http://localhost:8000",
 });
 
