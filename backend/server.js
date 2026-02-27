@@ -1,9 +1,12 @@
 // server.js
 // Supabase PostgreSQL + Firebase Auth
 
-// Force IPv4 to fix ENETUNREACH on Render (IPv6 not supported for Supabase)
+// Force IPv4 ONLY to fix ENETUNREACH on Render (IPv6 not supported for Supabase)
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
+
+// Additional IPv4 enforcement for pg module
+process.env.NODE_OPTIONS = '--dns-result-order=ipv4first';
 
 require("dotenv").config();
 const express = require("express");
@@ -25,10 +28,13 @@ const PORT = process.env.PORT || 8000;
 const upload = multer({ storage: multer.memoryStorage() });
 
 // ===== SUPABASE POSTGRESQL CONNECTION =====
-// Set SUPABASE_URL in your .env file with your Supabase connection string
-// Format: postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+// Explicit configuration to force IPv4 and avoid ENETUNREACH errors
 const pool = new Pool({
-  connectionString: process.env.SUPABASE_URL,
+  user: 'postgres',
+  password: 'Har20050927Haha',
+  host: 'db.wwdidwkcqicvaithslfl.supabase.co',
+  port: 5432,
+  database: 'postgres',
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
