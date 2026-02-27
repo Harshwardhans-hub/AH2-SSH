@@ -1,5 +1,10 @@
 // server.js
 // Supabase PostgreSQL + Firebase Auth
+
+// Force IPv4 to fix ENETUNREACH on Render (IPv6 not supported for Supabase)
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
@@ -25,6 +30,9 @@ const upload = multer({ storage: multer.memoryStorage() });
 const pool = new Pool({
   connectionString: process.env.SUPABASE_URL,
   ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 10,
 });
 
 // Test connection
