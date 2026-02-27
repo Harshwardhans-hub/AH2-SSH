@@ -6,12 +6,54 @@
 .login-page-wrapper {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-family: 'Poppins', sans-serif;
   position: relative;
   overflow: hidden;
   background: linear-gradient(135deg, #e8eaf6 0%, #c5cae9 30%, #b2c4f0 50%, #d1c4e9 70%, #e8eaf6 100%);
+  padding: 40px 20px;
+}
+
+.login-brand-header {
+  text-align: center;
+  margin-bottom: 30px;
+  z-index: 2;
+  animation: fadeInDown 0.8s ease-out;
+}
+
+.login-brand-header h1 {
+  font-size: 48px;
+  font-weight: 800;
+  color: #3a5ba0;
+  margin: 0;
+  letter-spacing: -1.5px;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #3a5ba0 0%, #5b7ec2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.login-brand-header p {
+  font-size: 16px;
+  color: #667eea;
+  margin-top: 5px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Decorative blobs */

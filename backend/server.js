@@ -5,6 +5,7 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 const cron = require("node-cron");
 const multer = require("multer");
 const { fetchAllJobs } = require("./services/jobService");
@@ -633,6 +634,572 @@ app.post("/career/suggest", async (req, res) => {
   }
 });
 
+// ===== AI CAREER GUIDANCE FROM RESUME =====
+app.post("/career/analyze-resume", upload.single('resume'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Please upload a resume PDF file." });
+    }
+
+    const { buffer, originalname } = req.file;
+    const ext = originalname.split('.').pop().toLowerCase();
+    let resumeText = "";
+
+    if (ext === 'pdf') {
+      resumeText = await extractTextFromPDF(buffer);
+    } else if (ext === 'docx') {
+      resumeText = await require('./services/resumeService').extractTextFromDOCX(buffer);
+    } else if (ext === 'txt') {
+      resumeText = buffer.toString('utf8');
+    } else {
+      return res.status(400).json({ error: "Only PDF, DOCX, and TXT files are supported." });
+    }
+
+    if (!resumeText || resumeText.trim().length < 50) {
+      return res.status(400).json({ error: "Could not extract enough text from the resume. Please upload a valid file." });
+    }
+
+    // Extract keywords from resume
+    const { extractKeywords, detectSections, checkContactInfo, analyzeFormatting } = require('./services/resumeService');
+
+    // Since extractKeywords is not exported, we'll replicate inline
+    const lower = resumeText.toLowerCase();
+
+    const TECH_KEYWORDS = {
+      languages: ['javascript', 'typescript', 'python', 'java', 'c++', 'c#', 'go', 'rust', 'ruby', 'php', 'swift', 'kotlin', 'scala', 'r', 'sql', 'html', 'css', 'dart', 'shell', 'bash', 'matlab'],
+      frameworks: ['react', 'angular', 'vue', 'next.js', 'express', 'django', 'flask', 'fastapi', 'spring', 'spring boot', 'laravel', '.net', 'flutter', 'react native', 'node.js', 'nodejs', 'svelte', 'gatsby', 'nest.js'],
+      databases: ['mysql', 'postgresql', 'mongodb', 'redis', 'elasticsearch', 'sqlite', 'dynamodb', 'firebase', 'supabase', 'neo4j'],
+      cloud: ['aws', 'azure', 'gcp', 'google cloud', 'heroku', 'docker', 'kubernetes', 'terraform', 'ansible', 'jenkins', 'ci/cd', 'github actions'],
+      ai_ml: ['machine learning', 'deep learning', 'tensorflow', 'pytorch', 'keras', 'nlp', 'natural language', 'computer vision', 'neural network', 'scikit-learn', 'pandas', 'numpy', 'data science', 'artificial intelligence'],
+      tools: ['git', 'github', 'figma', 'postman', 'webpack', 'vite', 'linux', 'jira', 'confluence'],
+      concepts: ['rest', 'graphql', 'microservices', 'serverless', 'agile', 'scrum', 'devops', 'blockchain', 'web3', 'solidity', 'cybersecurity', 'penetration testing', 'ethical hacking'],
+      design: ['figma', 'adobe xd', 'sketch', 'wireframe', 'prototype', 'ui design', 'ux design', 'user experience', 'user interface', 'graphic design'],
+      mobile: ['android', 'ios', 'flutter', 'react native', 'swift', 'kotlin', 'mobile development', 'app development'],
+      gamedev: ['unity', 'unreal engine', 'game development', 'game design', '3d modeling', 'animation'],
+    };
+
+    // Find all skills in the resume
+    const foundSkills = {};
+    const allFoundSkillsList = [];
+
+    for (const [category, keywords] of Object.entries(TECH_KEYWORDS)) {
+      foundSkills[category] = [];
+      for (const kw of keywords) {
+        const pattern = kw.length <= 3
+          ? new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
+          : new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        if (pattern.test(lower)) {
+          foundSkills[category].push(kw);
+          allFoundSkillsList.push(kw);
+        }
+      }
+    }
+
+    // Detect education level
+    const hasEducation = {
+      phd: /ph\.?d|doctorate/i.test(resumeText),
+      masters: /master'?s?|m\.?s\.?|m\.?tech|mba/i.test(resumeText),
+      bachelors: /bachelor'?s?|b\.?tech|b\.?e\.?|b\.?s\.?|b\.?sc/i.test(resumeText),
+      diploma: /diploma/i.test(resumeText),
+    };
+
+    // Detect experience level
+    const expMatch = resumeText.match(/(\d+)\+?\s*(?:years?|yrs?)\s*(?:of)?\s*experience/i);
+    const yearsOfExp = expMatch ? parseInt(expMatch[1]) : 0;
+    let experienceLevel = "Beginner";
+    if (yearsOfExp >= 5) experienceLevel = "Senior";
+    else if (yearsOfExp >= 2) experienceLevel = "Mid-Level";
+    else if (yearsOfExp >= 1 || hasEducation.masters || hasEducation.phd) experienceLevel = "Junior";
+
+    // Career paths database with matching criteria
+    const careerPaths = [
+      {
+        id: "ai-ml-engineer",
+        title: "AI/ML Engineer",
+        matchKeywords: ['machine learning', 'deep learning', 'tensorflow', 'pytorch', 'keras', 'nlp', 'natural language', 'computer vision', 'neural network', 'scikit-learn', 'pandas', 'numpy', 'data science', 'artificial intelligence', 'python', 'r'],
+        description: "Build and deploy intelligent systems using artificial intelligence and machine learning.",
+        icon: "🤖",
+        roadmap: {
+          beginner: [
+            "Learn Python programming fundamentals",
+            "Study mathematics: Linear Algebra, Calculus, Probability & Statistics",
+            "Complete Andrew Ng's Machine Learning course on Coursera",
+            "Learn data manipulation with Pandas & NumPy",
+            "Build 3-5 ML projects on real datasets",
+            "Participate in Kaggle competitions"
+          ],
+          intermediate: [
+            "Deep dive into Deep Learning (CNNs, RNNs, Transformers)",
+            "Specialize in NLP or Computer Vision",
+            "Learn TensorFlow or PyTorch in depth",
+            "Study MLOps and model deployment (Docker, Flask/FastAPI)",
+            "Contribute to open-source AI projects",
+            "Build an end-to-end ML pipeline project"
+          ],
+          advanced: [
+            "Research and implement state-of-the-art architectures",
+            "Master distributed training and large-scale systems",
+            "Study advanced topics: GANs, Reinforcement Learning, Diffusion Models",
+            "Publish research papers or technical blogs",
+            "Lead ML projects and mentor junior engineers",
+            "Explore AI Ethics and Responsible AI practices"
+          ]
+        },
+        resources: [
+          { name: "Andrew Ng's ML Course", url: "https://www.coursera.org/learn/machine-learning" },
+          { name: "Fast.ai", url: "https://www.fast.ai" },
+          { name: "Hugging Face", url: "https://huggingface.co/learn" },
+          { name: "Kaggle", url: "https://www.kaggle.com/learn" },
+          { name: "Papers With Code", url: "https://paperswithcode.com" }
+        ],
+        salaryRange: "₹8-40 LPA (India) | $90K-180K (US)"
+      },
+      {
+        id: "software-developer",
+        title: "Software Developer",
+        matchKeywords: ['javascript', 'typescript', 'python', 'java', 'c++', 'c#', 'react', 'angular', 'vue', 'express', 'node.js', 'nodejs', 'html', 'css', 'sql', 'rest', 'graphql'],
+        description: "Build applications and software solutions using modern technologies.",
+        icon: "💻",
+        roadmap: {
+          beginner: [
+            "Master one programming language (JavaScript/Python/Java)",
+            "Learn HTML, CSS & responsive design",
+            "Understand data structures & algorithms",
+            "Learn Git version control",
+            "Build 3-5 personal projects",
+            "Practice on LeetCode/HackerRank"
+          ],
+          intermediate: [
+            "Learn a frontend framework (React/Angular/Vue)",
+            "Master backend development (Node.js/Django/Spring)",
+            "Study databases (SQL & NoSQL)",
+            "Learn RESTful API design and testing",
+            "Understand design patterns & clean code",
+            "Contribute to open-source projects"
+          ],
+          advanced: [
+            "Study system design & architecture",
+            "Master microservices and distributed systems",
+            "Learn cloud platforms (AWS/Azure/GCP)",
+            "Implement CI/CD pipelines",
+            "Lead technical projects and code reviews",
+            "Specialize in a domain (FinTech, HealthTech, etc.)"
+          ]
+        },
+        resources: [
+          { name: "FreeCodeCamp", url: "https://www.freecodecamp.org" },
+          { name: "The Odin Project", url: "https://www.theodinproject.com" },
+          { name: "MDN Web Docs", url: "https://developer.mozilla.org" },
+          { name: "LeetCode", url: "https://leetcode.com" },
+          { name: "Full Stack Open", url: "https://fullstackopen.com" }
+        ],
+        salaryRange: "₹5-30 LPA (India) | $70K-150K (US)"
+      },
+      {
+        id: "data-scientist",
+        title: "Data Scientist",
+        matchKeywords: ['data science', 'python', 'r', 'sql', 'pandas', 'numpy', 'statistics', 'tableau', 'power bi', 'data analysis', 'visualization', 'excel'],
+        description: "Analyze complex data to help organizations make informed decisions.",
+        icon: "📊",
+        roadmap: {
+          beginner: [
+            "Learn Python and SQL fundamentals",
+            "Study statistics and probability",
+            "Learn data manipulation with Pandas",
+            "Master data visualization (Matplotlib, Seaborn)",
+            "Practice on real datasets from Kaggle",
+            "Take a structured Data Science course"
+          ],
+          intermediate: [
+            "Learn machine learning algorithms (Scikit-learn)",
+            "Master advanced SQL and database design",
+            "Study A/B testing and experimental design",
+            "Learn Tableau or Power BI for dashboards",
+            "Work on end-to-end data projects",
+            "Study feature engineering techniques"
+          ],
+          advanced: [
+            "Master deep learning for structured/unstructured data",
+            "Learn big data tools (Spark, Hadoop)",
+            "Study causal inference and advanced statistics",
+            "Build and deploy ML models in production",
+            "Lead data-driven initiatives",
+            "Specialize in a domain (healthcare, finance, marketing)"
+          ]
+        },
+        resources: [
+          { name: "Kaggle", url: "https://www.kaggle.com/learn" },
+          { name: "DataCamp", url: "https://www.datacamp.com" },
+          { name: "Coursera Data Science Specialization", url: "https://www.coursera.org/specializations/jhu-data-science" },
+          { name: "Towards Data Science", url: "https://towardsdatascience.com" }
+        ],
+        salaryRange: "₹6-35 LPA (India) | $80K-160K (US)"
+      },
+      {
+        id: "devops-engineer",
+        title: "DevOps Engineer",
+        matchKeywords: ['docker', 'kubernetes', 'aws', 'azure', 'gcp', 'terraform', 'ansible', 'jenkins', 'ci/cd', 'github actions', 'linux', 'devops', 'cloud'],
+        description: "Bridge development and operations with automation, CI/CD, and cloud infrastructure.",
+        icon: "⚙️",
+        roadmap: {
+          beginner: [
+            "Learn Linux system administration",
+            "Understand networking fundamentals",
+            "Learn a scripting language (Bash/Python)",
+            "Get started with Git and version control",
+            "Set up a basic CI/CD pipeline",
+            "Learn the basics of cloud computing"
+          ],
+          intermediate: [
+            "Master Docker containerization",
+            "Learn Kubernetes orchestration",
+            "Study Infrastructure as Code (Terraform)",
+            "Set up CI/CD with Jenkins/GitHub Actions",
+            "Learn monitoring tools (Prometheus, Grafana)",
+            "Get a cloud certification (AWS/Azure)"
+          ],
+          advanced: [
+            "Design highly available distributed systems",
+            "Master service mesh (Istio, Linkerd)",
+            "Implement GitOps workflows",
+            "Study chaos engineering",
+            "Lead platform engineering initiatives",
+            "Automate security scanning and compliance"
+          ]
+        },
+        resources: [
+          { name: "KodeKloud", url: "https://kodekloud.com" },
+          { name: "Docker Docs", url: "https://docs.docker.com" },
+          { name: "AWS Free Tier", url: "https://aws.amazon.com/free" },
+          { name: "Linux Foundation", url: "https://training.linuxfoundation.org" }
+        ],
+        salaryRange: "₹7-35 LPA (India) | $85K-165K (US)"
+      },
+      {
+        id: "cybersecurity-analyst",
+        title: "Cybersecurity Analyst",
+        matchKeywords: ['cybersecurity', 'security', 'ethical hacking', 'penetration testing', 'firewall', 'soc', 'siem', 'network security', 'vulnerability'],
+        description: "Protect systems and data from cyber threats through analysis and security measures.",
+        icon: "🔒",
+        roadmap: {
+          beginner: [
+            "Learn networking fundamentals (TCP/IP, DNS, HTTP)",
+            "Study Linux and Windows security basics",
+            "Understand common vulnerabilities (OWASP Top 10)",
+            "Learn basic cryptography",
+            "Practice on TryHackMe beginner rooms",
+            "Study for CompTIA Security+ certification"
+          ],
+          intermediate: [
+            "Master security tools (Wireshark, Nmap, Burp Suite)",
+            "Learn penetration testing methodologies",
+            "Study SIEM tools and log analysis",
+            "Practice on HackTheBox",
+            "Get CEH or OSCP certified",
+            "Understand incident response procedures"
+          ],
+          advanced: [
+            "Specialize: Red Team, Blue Team, or Purple Team",
+            "Master advanced exploitation techniques",
+            "Lead security audits and assessments",
+            "Study malware analysis and reverse engineering",
+            "Contribute to bug bounty programs",
+            "Design enterprise security architectures"
+          ]
+        },
+        resources: [
+          { name: "TryHackMe", url: "https://tryhackme.com" },
+          { name: "HackTheBox", url: "https://www.hackthebox.com" },
+          { name: "OWASP", url: "https://owasp.org" },
+          { name: "CyberDefenders", url: "https://cyberdefenders.org" }
+        ],
+        salaryRange: "₹6-30 LPA (India) | $75K-145K (US)"
+      },
+      {
+        id: "ui-ux-designer",
+        title: "UI/UX Designer",
+        matchKeywords: ['figma', 'adobe xd', 'sketch', 'wireframe', 'prototype', 'ui design', 'ux design', 'user experience', 'user interface', 'graphic design', 'design'],
+        description: "Design intuitive user interfaces and experiences for web and mobile apps.",
+        icon: "🎨",
+        roadmap: {
+          beginner: [
+            "Learn design principles and color theory",
+            "Master Figma for UI design",
+            "Study typography and layout basics",
+            "Learn wireframing techniques",
+            "Complete Google UX Design Certificate",
+            "Redesign 3 existing apps as practice"
+          ],
+          intermediate: [
+            "Master prototyping and interaction design",
+            "Study user research methodologies",
+            "Learn design systems and component libraries",
+            "Build a comprehensive design portfolio",
+            "Study accessibility standards (WCAG)",
+            "Learn usability testing"
+          ],
+          advanced: [
+            "Lead design sprints and workshops",
+            "Master motion design and micro-interactions",
+            "Study design leadership and team management",
+            "Create and maintain design systems at scale",
+            "Specialize in a vertical (mobile, enterprise, etc.)",
+            "Publish case studies and design articles"
+          ]
+        },
+        resources: [
+          { name: "Google UX Design Certificate", url: "https://grow.google/uxdesign" },
+          { name: "Figma Learn", url: "https://www.figma.com/resources/learn-design/" },
+          { name: "Nielsen Norman Group", url: "https://www.nngroup.com" },
+          { name: "Dribbble", url: "https://dribbble.com" }
+        ],
+        salaryRange: "₹5-25 LPA (India) | $65K-130K (US)"
+      },
+      {
+        id: "mobile-developer",
+        title: "Mobile App Developer",
+        matchKeywords: ['android', 'ios', 'flutter', 'react native', 'swift', 'kotlin', 'mobile development', 'app development', 'dart'],
+        description: "Build native and cross-platform mobile applications.",
+        icon: "📱",
+        roadmap: {
+          beginner: [
+            "Choose: Native (Swift/Kotlin) or Cross-platform (Flutter/React Native)",
+            "Learn the chosen framework's fundamentals",
+            "Build a simple app (To-Do, Weather, Calculator)",
+            "Understand mobile UI patterns and navigation",
+            "Learn state management basics",
+            "Publish a simple app to the store"
+          ],
+          intermediate: [
+            "Master API integration and networking",
+            "Learn local storage and database (SQLite, Realm)",
+            "Implement push notifications",
+            "Study performance optimization",
+            "Build 3-5 polished apps for your portfolio",
+            "Learn testing strategies for mobile"
+          ],
+          advanced: [
+            "Master complex animations and custom UI",
+            "Learn CI/CD for mobile (Fastlane, Codemagic)",
+            "Study app architecture patterns (MVVM, Clean Architecture)",
+            "Implement real-time features (WebSockets, Firebase)",
+            "Lead mobile development teams",
+            "Optimize for App Store ranking (ASO)"
+          ]
+        },
+        resources: [
+          { name: "Flutter Dev", url: "https://flutter.dev" },
+          { name: "React Native Docs", url: "https://reactnative.dev" },
+          { name: "Android Developers", url: "https://developer.android.com" },
+          { name: "Apple Developer", url: "https://developer.apple.com" }
+        ],
+        salaryRange: "₹5-30 LPA (India) | $70K-150K (US)"
+      },
+      {
+        id: "full-stack-developer",
+        title: "Full Stack Developer",
+        matchKeywords: ['react', 'angular', 'vue', 'node.js', 'nodejs', 'express', 'django', 'flask', 'mongodb', 'postgresql', 'mysql', 'html', 'css', 'javascript', 'typescript'],
+        description: "Master both frontend and backend to build complete web applications.",
+        icon: "🌐",
+        roadmap: {
+          beginner: [
+            "Learn HTML, CSS, and JavaScript thoroughly",
+            "Build responsive websites from scratch",
+            "Learn a frontend framework (React recommended)",
+            "Study Node.js and Express basics",
+            "Learn SQL and NoSQL databases",
+            "Build a full-stack CRUD application"
+          ],
+          intermediate: [
+            "Master React with state management (Redux/Context)",
+            "Learn authentication and authorization (JWT, OAuth)",
+            "Study RESTful API design best practices",
+            "Learn deployment (Vercel, Netlify, Heroku)",
+            "Implement real-time features (WebSockets)",
+            "Build 3 full-stack portfolio projects"
+          ],
+          advanced: [
+            "Master TypeScript for full-stack development",
+            "Learn Next.js for SSR/SSG",
+            "Study system design and scalability",
+            "Implement microservices architecture",
+            "Learn cloud deployment (AWS/Azure)",
+            "Lead full-stack development teams"
+          ]
+        },
+        resources: [
+          { name: "Full Stack Open", url: "https://fullstackopen.com" },
+          { name: "The Odin Project", url: "https://www.theodinproject.com" },
+          { name: "Scrimba", url: "https://scrimba.com" },
+          { name: "FreeCodeCamp", url: "https://www.freecodecamp.org" }
+        ],
+        salaryRange: "₹5-30 LPA (India) | $75K-155K (US)"
+      },
+      {
+        id: "blockchain-developer",
+        title: "Blockchain Developer",
+        matchKeywords: ['blockchain', 'web3', 'solidity', 'ethereum', 'smart contract', 'defi', 'crypto', 'dapp'],
+        description: "Build decentralized applications and smart contracts on blockchain platforms.",
+        icon: "⛓️",
+        roadmap: {
+          beginner: [
+            "Understand blockchain fundamentals and cryptography",
+            "Learn JavaScript/TypeScript and Solidity",
+            "Study Ethereum and smart contract basics",
+            "Complete CryptoZombies tutorial",
+            "Build and deploy a simple smart contract",
+            "Learn Web3.js or Ethers.js basics"
+          ],
+          intermediate: [
+            "Master Solidity design patterns and security",
+            "Learn Hardhat/Truffle development frameworks",
+            "Study DeFi protocols and tokenomics",
+            "Build a full dApp with frontend integration",
+            "Learn IPFS and decentralized storage",
+            "Audit smart contracts for vulnerabilities"
+          ],
+          advanced: [
+            "Master cross-chain development",
+            "Study Layer 2 solutions and scalability",
+            "Learn Rust for Solana/Polkadot development",
+            "Contribute to major DeFi protocols",
+            "Lead blockchain architecture decisions",
+            "Publish smart contract audit reports"
+          ]
+        },
+        resources: [
+          { name: "CryptoZombies", url: "https://cryptozombies.io" },
+          { name: "Ethereum Docs", url: "https://ethereum.org/developers" },
+          { name: "Solidity by Example", url: "https://solidity-by-example.org" },
+          { name: "Alchemy University", url: "https://university.alchemy.com" }
+        ],
+        salaryRange: "₹8-40 LPA (India) | $90K-200K (US)"
+      },
+      {
+        id: "product-manager",
+        title: "Product Manager",
+        matchKeywords: ['product', 'management', 'agile', 'scrum', 'strategy', 'roadmap', 'stakeholder', 'analytics', 'leadership'],
+        description: "Oversee product development, strategy, and execution across teams.",
+        icon: "📋",
+        roadmap: {
+          beginner: [
+            "Understand the product lifecycle",
+            "Learn Agile and Scrum methodologies",
+            "Study user research basics",
+            "Learn product analytics (Mixpanel, Amplitude)",
+            "Practice writing PRDs and user stories",
+            "Shadow a product manager if possible"
+          ],
+          intermediate: [
+            "Master stakeholder communication",
+            "Learn A/B testing and experimentation",
+            "Study market analysis and competitive research",
+            "Build and manage product roadmaps",
+            "Get comfortable with data-driven decision making",
+            "Lead a small product initiative"
+          ],
+          advanced: [
+            "Define product vision and strategy",
+            "Master cross-functional leadership",
+            "Study platform and ecosystem thinking",
+            "Learn growth product management",
+            "Mentor junior PMs",
+            "Drive large-scale product launches"
+          ]
+        },
+        resources: [
+          { name: "Product School", url: "https://www.productschool.com" },
+          { name: "Mind the Product", url: "https://www.mindtheproduct.com" },
+          { name: "Reforge", url: "https://www.reforge.com" },
+          { name: "Lenny's Newsletter", url: "https://www.lennysnewsletter.com" }
+        ],
+        salaryRange: "₹10-45 LPA (India) | $95K-180K (US)"
+      }
+    ];
+
+    // Score each career path based on matched skills
+    const scoredPaths = careerPaths.map(path => {
+      let score = 0;
+      const matchedWith = [];
+
+      for (const kw of path.matchKeywords) {
+        if (allFoundSkillsList.some(s => s.toLowerCase() === kw.toLowerCase() || s.toLowerCase().includes(kw.toLowerCase()) || kw.toLowerCase().includes(s.toLowerCase()))) {
+          score++;
+          matchedWith.push(kw);
+        }
+      }
+
+      const matchPercentage = Math.round((score / path.matchKeywords.length) * 100);
+
+      return {
+        ...path,
+        score,
+        matchPercentage,
+        matchedWith: [...new Set(matchedWith)],
+      };
+    });
+
+    // Sort by score descending
+    scoredPaths.sort((a, b) => b.score - a.score);
+
+    // Get top 3 recommended careers
+    const topCareers = scoredPaths.slice(0, 3);
+
+    // Determine roadmap level based on experience
+    let roadmapLevel = "beginner";
+    if (experienceLevel === "Senior") roadmapLevel = "advanced";
+    else if (experienceLevel === "Mid-Level") roadmapLevel = "intermediate";
+    else if (experienceLevel === "Junior") roadmapLevel = "intermediate";
+
+    // Build response
+    const result = {
+      studentProfile: {
+        skillsFound: allFoundSkillsList,
+        skillsByCategory: foundSkills,
+        experienceLevel,
+        yearsOfExp,
+        education: Object.entries(hasEducation).filter(([, v]) => v).map(([k]) => k),
+      },
+      primaryCareer: {
+        ...topCareers[0],
+        recommendedRoadmap: topCareers[0].roadmap[roadmapLevel],
+        roadmapLevel,
+      },
+      alternativeCareers: topCareers.slice(1).map(c => ({
+        id: c.id,
+        title: c.title,
+        icon: c.icon,
+        description: c.description,
+        matchPercentage: c.matchPercentage,
+        matchedWith: c.matchedWith,
+        salaryRange: c.salaryRange,
+        resources: c.resources.slice(0, 3),
+        recommendedRoadmap: c.roadmap[roadmapLevel],
+        roadmapLevel,
+      })),
+      allPathsScored: scoredPaths.map(c => ({
+        id: c.id,
+        title: c.title,
+        icon: c.icon,
+        matchPercentage: c.matchPercentage,
+        matchedWith: c.matchedWith,
+      })),
+      tips: [
+        topCareers[0].matchPercentage < 50 ? "Your resume could benefit from more specific technical keywords. Add projects and skills relevant to your target career." : "Great skill coverage! Focus on deepening your expertise in your top career match.",
+        yearsOfExp === 0 ? "Consider adding internship experience or personal projects to strengthen your profile." : `Your ${yearsOfExp}+ years of experience position you well for ${experienceLevel}-level roles.`,
+        foundSkills.languages.length === 0 ? "Add programming languages you know to your resume — they are critical for tech roles." : `You have ${foundSkills.languages.length} programming language(s) listed. Consider adding more based on your target role.`,
+        "Tailor your resume for each application — customize the skills section to match the job description.",
+        "Build a portfolio of projects that showcase skills relevant to your chosen career path."
+      ]
+    };
+
+    res.json(result);
+  } catch (err) {
+    console.error("Career analysis error:", err.message);
+    res.status(500).json({ error: err.message || "Career analysis failed" });
+  }
+});
+
 // ===== AI CHATBOT =====
 app.post("/chatbot/ask", async (req, res) => {
   try {
@@ -1126,6 +1693,29 @@ app.post("/applications", async (req, res) => {
   } catch (err) {
     console.error("Create application error:", err);
     res.status(500).json({ error: err.message || "Failed to create application" });
+  }
+});
+
+app.put("/applications/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    await pool.query("UPDATE applications SET status=$1 WHERE id=$2", [status, id]);
+    res.json({ message: "Application updated successfully" });
+  } catch (err) {
+    console.error("Update application error:", err);
+    res.status(500).json({ error: err.message || "Failed to update application" });
+  }
+});
+
+app.delete("/applications/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query("DELETE FROM applications WHERE id=$1", [id]);
+    res.json({ message: "Application deleted successfully" });
+  } catch (err) {
+    console.error("Delete application error:", err);
+    res.status(500).json({ error: err.message || "Failed to delete application" });
   }
 });
 
@@ -1792,6 +2382,258 @@ app.put("/internships/:id/ppo", async (req, res) => {
   } catch (err) {
     console.error("Update PPO error:", err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== EMAIL SENDING VIA GOOGLE SMTP =====
+
+// Create nodemailer transporter with Google SMTP
+const createEmailTransporter = () => {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: false,
+    auth: {
+      user: process.env.SMTP_EMAIL,
+      pass: process.env.SMTP_PASSWORD,
+    },
+  });
+};
+
+// Generate professional plain-text-style email template
+const generateEmailHTML = ({ studentName, emailType, companyName, roleName, collegeName, additionalMessage }) => {
+  const isSelection = emailType === "selection";
+  const date = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const selectionBody = `Dear ${studentName},
+
+Thank you for your interest in ${companyName} and for the time and effort you invested throughout the recruitment process.
+
+We are pleased to inform you that after a thorough review of your application and performance, you have been selected for the ${roleName} role at ${companyName}.
+
+This is a significant achievement, and the entire placement team congratulates you on this offer.
+
+Further details regarding your onboarding, joining date, and documentation will be communicated to you by the company directly. Please continue to monitor your registered email address and the college placement portal for updates.
+
+We encourage you to join our placement community and stay connected for future opportunities and announcements.
+
+Wishing you a successful and rewarding career ahead,
+
+Placement Cell
+${collegeName || 'College Placement Portal'}`;
+
+  const rejectionBody = `Dear ${studentName},
+
+Thank you again for your interest in ${companyName}. Your time and effort spent in the recruitment process for the ${roleName} role hasn't gone unnoticed.
+
+After a thorough review of your application, we regret to inform you that we have decided not to advance your candidacy to the next stage at this time.
+
+While we know this isn't the news you hoped for, this doesn't have to mean goodbye forever.
+
+We encourage you to continue applying for roles that match your skillset and career goals. New and exciting opportunities are added regularly, and the right one for you may be just around the corner.
+
+Keep sharpening your skills, building your portfolio, and staying active on the placement portal — success is a process, not a single event.
+
+Wishing you all the best,
+
+Placement Cell
+${collegeName || 'College Placement Portal'}`;
+
+  const bodyText = isSelection ? selectionBody : rejectionBody;
+  const additionalSection = additionalMessage
+    ? `<p style="margin: 20px 0 0; font-size: 14px; color: #444; line-height: 1.9; background: #f9f9f9; padding: 14px 18px; border-left: 3px solid #888;"><strong>Additional note from the Placement Cell:</strong><br>${additionalMessage}</p>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background: #f4f4f4; font-family: Arial, Helvetica, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4; padding: 30px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border: 1px solid #e0e0e0; max-width: 600px; width: 100%;">
+
+          <!-- Top bar -->
+          <tr>
+            <td style="background: #1a2a6c; padding: 14px 30px;">
+              <p style="margin: 0; color: #ffffff; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">${collegeName || 'College Placement Portal'} — Placement Cell</p>
+            </td>
+          </tr>
+
+          <!-- Subject line area -->
+          <tr>
+            <td style="padding: 28px 30px 10px;">
+              <p style="margin: 0; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px;">${date}</p>
+              <h2 style="margin: 8px 0 0; font-size: 18px; color: #1a1a1a; font-weight: bold;">
+                ${isSelection ? `Congratulations on Your Selection — ${roleName} at ${companyName}` : `Update on Your Application — ${roleName} at ${companyName}`}
+              </h2>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr><td style="padding: 0 30px;"><hr style="border: none; border-top: 1px solid #e8e8e8;"></td></tr>
+
+          <!-- Body text -->
+          <tr>
+            <td style="padding: 24px 30px;">
+              <p style="margin: 0; font-size: 14.5px; color: #333; line-height: 1.9; white-space: pre-line;">${bodyText}</p>
+              ${additionalSection}
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr><td style="padding: 0 30px;"><hr style="border: none; border-top: 1px solid #e8e8e8;"></td></tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 18px 30px 28px;">
+              <p style="margin: 0; font-size: 11.5px; color: #999; line-height: 1.7;">
+                This is an automated notification sent from the College Placement Portal. Please do not reply to this email directly.<br>
+                For queries, contact your Placement Cell coordinator.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+};
+
+
+
+// Send email to a student
+app.post("/send-email", async (req, res) => {
+  try {
+    const { studentEmail, studentName, emailType, companyName, roleName, additionalMessage } = req.body;
+
+    if (!studentEmail || !studentName || !emailType || !companyName || !roleName) {
+      return res.status(400).json({ error: "Missing required fields: studentEmail, studentName, emailType, companyName, roleName" });
+    }
+
+    if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD || process.env.SMTP_EMAIL === "your_email@gmail.com") {
+      return res.status(500).json({ error: "SMTP email not configured. Please update SMTP_EMAIL and SMTP_PASSWORD in .env file" });
+    }
+
+    const collegeName = process.env.COLLEGE_NAME || "College Placement Portal";
+
+    const transporter = createEmailTransporter();
+
+    const isSelection = emailType === "selection";
+    const subject = isSelection
+      ? `🎉 Congratulations! You've been selected for ${roleName} at ${companyName}`
+      : `Application Update: ${roleName} at ${companyName}`;
+
+    const htmlContent = generateEmailHTML({
+      studentName,
+      emailType,
+      companyName,
+      roleName,
+      collegeName,
+      additionalMessage,
+    });
+
+    const mailOptions = {
+      from: `"${collegeName} - Placement Cell" <${process.env.SMTP_EMAIL}>`,
+      to: studentEmail,
+      subject: subject,
+      html: htmlContent,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({
+      message: `${isSelection ? "Selection" : "Rejection"} email sent successfully to ${studentName} (${studentEmail})`,
+      success: true
+    });
+  } catch (err) {
+    console.error("Send email error:", err);
+    res.status(500).json({ error: err.message || "Failed to send email" });
+  }
+});
+
+// Send bulk emails to multiple students
+app.post("/send-bulk-email", async (req, res) => {
+  try {
+    const { students, emailType, companyName, roleName, additionalMessage } = req.body;
+
+    if (!students || !Array.isArray(students) || students.length === 0) {
+      return res.status(400).json({ error: "Students array is required" });
+    }
+
+    if (!emailType || !companyName || !roleName) {
+      return res.status(400).json({ error: "Missing required fields: emailType, companyName, roleName" });
+    }
+
+    if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD || process.env.SMTP_EMAIL === "your_email@gmail.com") {
+      return res.status(500).json({ error: "SMTP email not configured. Please update SMTP_EMAIL and SMTP_PASSWORD in .env file" });
+    }
+
+    const collegeName = process.env.COLLEGE_NAME || "College Placement Portal";
+    const transporter = createEmailTransporter();
+    const isSelection = emailType === "selection";
+
+    const results = { success: [], failed: [] };
+
+    for (const student of students) {
+      try {
+        const subject = isSelection
+          ? `🎉 Congratulations! You've been selected for ${roleName} at ${companyName}`
+          : `Application Update: ${roleName} at ${companyName}`;
+
+        const htmlContent = generateEmailHTML({
+          studentName: student.name,
+          emailType,
+          companyName,
+          roleName,
+          collegeName,
+          additionalMessage,
+        });
+
+        const mailOptions = {
+          from: `"${collegeName} - Placement Cell" <${process.env.SMTP_EMAIL}>`,
+          to: student.email,
+          subject: subject,
+          html: htmlContent,
+        };
+
+        await transporter.sendMail(mailOptions);
+        results.success.push({ name: student.name, email: student.email });
+      } catch (emailErr) {
+        results.failed.push({ name: student.name, email: student.email, error: emailErr.message });
+      }
+    }
+
+    res.json({
+      message: `Bulk email completed: ${results.success.length} sent, ${results.failed.length} failed`,
+      results,
+      success: true
+    });
+  } catch (err) {
+    console.error("Bulk email error:", err);
+    res.status(500).json({ error: err.message || "Failed to send bulk emails" });
+  }
+});
+
+// Test SMTP connection
+app.get("/email-config/test", async (req, res) => {
+  try {
+    if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD || process.env.SMTP_EMAIL === "your_email@gmail.com") {
+      return res.status(400).json({
+        configured: false,
+        message: "SMTP not configured. Please set SMTP_EMAIL and SMTP_PASSWORD in .env file"
+      });
+    }
+    const transporter = createEmailTransporter();
+    await transporter.verify();
+    res.json({ configured: true, message: "SMTP connection successful!", email: process.env.SMTP_EMAIL });
+  } catch (err) {
+    res.status(500).json({ configured: false, message: `SMTP connection failed: ${err.message}` });
   }
 });
 

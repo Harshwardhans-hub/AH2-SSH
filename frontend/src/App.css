@@ -33,7 +33,7 @@ html {
   background: linear-gradient(135deg, #1a2a6c 0%, #2d47a8 100%);
   color: white;
   padding: 10px 20px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -54,7 +54,8 @@ html {
 .dashboard {
   display: flex;
   flex: 1;
-  min-height: 0; /* Allow flex children to scroll */
+  min-height: 0;
+  /* Allow flex children to scroll */
 }
 
 /* ===== Sidebar ===== */
@@ -66,7 +67,7 @@ html {
   flex-direction: column;
   padding: 20px 0;
   gap: 4px;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
   overflow-y: auto;
   position: sticky;
   top: 52px;
@@ -150,14 +151,14 @@ html {
 .post-card {
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   padding: 15px;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .post-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 }
 
 .post-header {
@@ -218,7 +219,7 @@ html {
 
 .search-bar-wrapper input:focus {
   border-color: #007bff;
-  box-shadow: 0 0 5px rgba(0,123,255,0.5);
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
 }
 
 /* ===== Inbox Button ===== */
@@ -232,14 +233,14 @@ html {
   border-radius: 25px;
   text-decoration: none;
   font-weight: 500;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   transition: all 0.2s;
 }
 
 .inbox-btn:hover {
   background: #007bff;
   color: #fff;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
 /* ===== Search Bar ===== */
@@ -250,7 +251,7 @@ html {
   background: #fff;
   border-radius: 25px;
   padding: 5px 10px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .search-bar-wrapper input {
@@ -336,7 +337,7 @@ html {
   background: white;
   padding: 25px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   text-align: center;
 }
 
@@ -359,7 +360,7 @@ html {
   background: white;
   padding: 25px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .recent-activity h3,
@@ -439,12 +440,18 @@ html {
 }
 
 /* Override for content cards inside glass content */
-.glass-content > div {
+.glass-content>div {
   background: transparent;
 }
 
 /* Ensure content is above background */
-.dashboard-with-background > * {
+.dashboard-with-background>* {
   position: relative;
   z-index: 1;
+}
+
+/* Ensure chatbot floats above everything in student dashboard */
+.dashboard-with-background .chatbot-fab,
+.dashboard-with-background .chatbot-window {
+  z-index: 10000;
 }

@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Routes, Route, Link, useLocation } from "react-router-dom";
-import { FaUser, FaUsers, FaBriefcase, FaFileAlt, FaCalendar, FaLaptop, FaInfoCircle, FaClipboardList, FaStar, FaRobot } from "react-icons/fa";
+import { FaUser, FaUsers, FaBriefcase, FaFileAlt, FaCalendar, FaLaptop, FaInfoCircle, FaClipboardList, FaRobot } from "react-icons/fa";
 
 import StudentHome from "./StudentHome";
 import Profile from "./Profile";
@@ -14,7 +14,7 @@ import Events from "./Events";
 import Documents from "./Documents";
 import About from "./About";
 import ApplicationTracker from "./ApplicationTracker";
-import RecommendedJobs from "./RecommendedJobs";
+
 import ResumeAnalyzer from "./ResumeAnalyzer";
 import AIChatbot from "./AIChatbot";
 import { useBackground } from "../context/BackgroundContext";
@@ -43,72 +43,72 @@ function StudentDashboard() {
   }, [location, changeBackground]);
 
   return (
-    <div 
-      className="dashboard dashboard-with-background"
-      style={{
-        backgroundImage: `url(${backgrounds[currentBackground]})`,
-      }}
-    >
-      {/* Sidebar */}
-      <aside className="sidebar glass-sidebar">
-        <Link to="/student-dashboard" className="menu-item">
-          <span>🏠</span> <span>Home</span>
-        </Link>
-        <Link to="/student-dashboard/profile" className="menu-item">
-          <FaUser /> <span>Profile</span>
-        </Link>
-        <Link to="/student-dashboard/applications" className="menu-item">
-          <FaClipboardList /> <span>Applications</span>
-        </Link>
-        <Link to="/student-dashboard/recommended" className="menu-item">
-          <FaStar /> <span>Recommended</span>
-        </Link>
-        <Link to="/student-dashboard/community" className="menu-item">
-          <FaUsers /> <span>Community</span>
-        </Link>
-        <Link to="/student-dashboard/career" className="menu-item">
-          <FaBriefcase /> <span>Career</span>
-        </Link>
-        <Link to="/student-dashboard/jobs" className="menu-item">
-          <FaLaptop /> <span>Jobs & Internships</span>
-        </Link>
-        <Link to="/student-dashboard/resume-analyzer" className="menu-item">
-          <FaRobot /> <span>Resume Analyzer</span>
-        </Link>
-        <Link to="/student-dashboard/events" className="menu-item">
-          <FaCalendar /> <span>Events</span>
-        </Link>
-        <Link to="/student-dashboard/documents" className="menu-item">
-          <FaFileAlt /> <span>Documents</span>
-        </Link>
-        <Link to="/student-dashboard/about" className="menu-item">
-          <FaInfoCircle /> <span>About Us</span>
-        </Link>
-      </aside>
+    <>
+      <div
+        className="dashboard dashboard-with-background"
+        style={{
+          backgroundImage: `url(${backgrounds[currentBackground]})`,
+        }}
+      >
+        {/* Sidebar */}
+        <aside className="sidebar glass-sidebar">
+          <Link to="/student-dashboard" className="menu-item">
+            <span>🏠</span> <span>Home</span>
+          </Link>
+          <Link to="/student-dashboard/profile" className="menu-item">
+            <FaUser /> <span>Profile</span>
+          </Link>
+          <Link to="/student-dashboard/applications" className="menu-item">
+            <FaClipboardList /> <span>Applications</span>
+          </Link>
 
-      {/* Main Content */}
-      <main className="main-content glass-content">
-        <Routes>
-          <Route path="/" element={<StudentHome />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/applications" element={<ApplicationTracker />} />
-          <Route path="/recommended" element={<RecommendedJobs />} />
-          <Route path="/community" element={<CommunityNew />} />
-          <Route path="/career" element={<Career />} />
-          <Route path="/career/:careerName" element={<CareerDetail />} />
-          <Route path="/career-suggestions" element={<CareerSuggestion />} />
-          <Route path="/jobs" element={<JobsInternshipsPage />} />
-          <Route path="/resume-analyzer" element={<ResumeAnalyzer />} />
-          <Route path="/chat" element={<ChatBox />} />
-          <Route path="/documents" element={<Documents />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/events" element={<Events />} />
-        </Routes>
-      </main>
+          <Link to="/student-dashboard/community" className="menu-item">
+            <FaUsers /> <span>Community</span>
+          </Link>
+          <Link to="/student-dashboard/career" className="menu-item">
+            <FaBriefcase /> <span>Career Guidance</span>
+          </Link>
+          <Link to="/student-dashboard/jobs" className="menu-item">
+            <FaLaptop /> <span>Jobs & Internships</span>
+          </Link>
+          <Link to="/student-dashboard/resume-analyzer" className="menu-item">
+            <FaRobot /> <span>Resume Analyzer</span>
+          </Link>
+          <Link to="/student-dashboard/events" className="menu-item">
+            <FaCalendar /> <span>Events</span>
+          </Link>
+          <Link to="/student-dashboard/documents" className="menu-item">
+            <FaFileAlt /> <span>Documents</span>
+          </Link>
+          <Link to="/student-dashboard/about" className="menu-item">
+            <FaInfoCircle /> <span>About Us</span>
+          </Link>
+        </aside>
 
-      {/* AI Chatbot - floating on every page */}
+        {/* Main Content */}
+        <main className="main-content glass-content">
+          <Routes>
+            <Route path="/" element={<StudentHome />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/applications" element={<ApplicationTracker />} />
+
+            <Route path="/community" element={<CommunityNew />} />
+            <Route path="/career" element={<Career />} />
+            <Route path="/career/:careerName" element={<CareerDetail />} />
+            <Route path="/career-suggestions" element={<CareerSuggestion />} />
+            <Route path="/jobs" element={<JobsInternshipsPage />} />
+            <Route path="/resume-analyzer" element={<ResumeAnalyzer />} />
+            <Route path="/chat" element={<ChatBox />} />
+            <Route path="/documents" element={<Documents />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/events" element={<Events />} />
+          </Routes>
+        </main>
+      </div>
+
+      {/* AI Chatbot - outside dashboard div so position:fixed works correctly */}
       <AIChatbot />
-    </div>
+    </>
   );
 }
 

@@ -404,3 +404,106 @@
     min-width: 600px;
   }
 }
+
+/* ===== Email Actions in Eligible Students Modal ===== */
+.email-info-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #ede9fe, #e0e7ff);
+  padding: 12px 18px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  color: #4338ca;
+  font-size: 14px;
+  border: 1px solid #c7d2fe;
+}
+
+.email-info-banner svg {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.drive-email-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.drive-email-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.drive-email-btn.selection {
+  background: #ecfdf5;
+  color: #10b981;
+  border: 1px solid #a7f3d0;
+}
+
+.drive-email-btn.selection:hover:not(:disabled) {
+  background: #10b981;
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.3);
+}
+
+.drive-email-btn.rejection {
+  background: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+}
+
+.drive-email-btn.rejection:hover:not(:disabled) {
+  background: #ef4444;
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 3px 10px rgba(239, 68, 68, 0.3);
+}
+
+.drive-email-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.email-result-inline {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.email-result-inline.success {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.email-result-inline.error {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -11,6 +11,7 @@
     "axios": "^1.13.5",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
+    "cheerio": "^1.0.0-rc.12",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
@@ -18,13 +19,13 @@
     "mammoth": "^1.11.0",
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.1",
     "pdf-parse": "^1.1.1",
     "pg": "^8.16.3",
-    "sqlite3": "^5.1.7",
     "puppeteer": "^22.0.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "cheerio": "^1.0.0-rc.12"
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "nodemon": "^3.0.0"

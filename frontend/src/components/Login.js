@@ -96,6 +96,10 @@ function Login({ onLogin }) {
 
   return (
     <div className="login-page-wrapper">
+      <div className="login-brand-header">
+        <h1>Hack-2-Hire</h1>
+        <p>Your AI-Powered Gateway to Careers</p>
+      </div>
       <div className="login-main-card">
         {/* Left Illustration */}
         <div className="login-illustration">
@@ -146,7 +150,7 @@ function Login({ onLogin }) {
               <div className="login-input-group">
                 <input
                   type="email"
-                  placeholder="Email or Username"
+                  placeholder="Email"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   required

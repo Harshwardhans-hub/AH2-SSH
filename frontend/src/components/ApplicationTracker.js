@@ -8,13 +8,16 @@ function ApplicationTracker() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [isAddingNew, setIsAddingNew] = useState(false);
-  
+
   const [newApp, setNewApp] = useState({
     company_name: "",
     role: "",
     location: "",
     status: "applied",
   });
+
+  const [selectedApp, setSelectedApp] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -68,6 +71,34 @@ function ApplicationTracker() {
     } catch (err) {
       console.error("Error adding application:", err);
       alert("❌ Failed to add application");
+    }
+  };
+
+  const handleUpdateStatus = async (id, newStatus) => {
+    setIsUpdating(true);
+    try {
+      await api.put(`/applications/${id}`, { status: newStatus });
+      alert("✅ Status updated successfully!");
+      setSelectedApp({ ...selectedApp, status: newStatus });
+      fetchApplications();
+    } catch (err) {
+      console.error("Error updating status:", err);
+      alert("❌ Failed to update status");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeleteApplication = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this application?")) return;
+    try {
+      await api.delete(`/applications/${id}`);
+      alert("🗑️ Application deleted");
+      setSelectedApp(null);
+      fetchApplications();
+    } catch (err) {
+      console.error("Error deleting application:", err);
+      alert("❌ Failed to delete application");
     }
   };
 
@@ -155,7 +186,7 @@ function ApplicationTracker() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="search-input"
         />
-        
+
         <div className="status-filters">
           <button
             className={filterStatus === "all" ? "active" : ""}
@@ -229,7 +260,12 @@ function ApplicationTracker() {
                     </span>
                   </td>
                   <td>
-                    <button className="btn-view">View Details</button>
+                    <button
+                      className="btn-view"
+                      onClick={() => setSelectedApp(app)}
+                    >
+                      View Details
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -261,6 +297,61 @@ function ApplicationTracker() {
           <p>{applications.filter(a => a.status === "interview").length}</p>
         </div>
       </div>
+      {/* Application Detail Modal */}
+      {selectedApp && (
+        <div className="app-modal-overlay" onClick={() => setSelectedApp(null)}>
+          <div className="app-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Application Details</h3>
+              <button className="close-btn" onClick={() => setSelectedApp(null)}>✕</button>
+            </div>
+            <div className="modal-content">
+              <div className="detail-row">
+                <strong>Company:</strong> <span>{selectedApp.company_name}</span>
+              </div>
+              <div className="detail-row">
+                <strong>Role:</strong> <span>{selectedApp.role}</span>
+              </div>
+              <div className="detail-row">
+                <strong>Location:</strong> <span>{selectedApp.location || "N/A"}</span>
+              </div>
+              <div className="detail-row">
+                <strong>Applied On:</strong> <span>{new Date(selectedApp.applied_date).toLocaleDateString()}</span>
+              </div>
+              <div className="detail-row">
+                <strong>Current Status:</strong>
+                <span className="status-badge" style={{ background: getStatusColor(selectedApp.status) }}>
+                  {getStatusIcon(selectedApp.status)} {selectedApp.status}
+                </span>
+              </div>
+
+              <div className="update-status-section">
+                <h4>Update Status</h4>
+                <div className="status-options">
+                  {["applied", "shortlisted", "interview", "rejected", "selected"].map(s => (
+                    <button
+                      key={s}
+                      className={`status-opt-btn ${selectedApp.status === s ? 'active' : ''}`}
+                      onClick={() => handleUpdateStatus(selectedApp.id, s)}
+                      disabled={isUpdating}
+                    >
+                      {getStatusIcon(s)} {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn-delete"
+                onClick={() => handleDeleteApplication(selectedApp.id)}
+              >
+                🗑️ Delete Application
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,13 +1,11 @@
 import React from "react";
 import { Routes, Route, Link } from "react-router-dom";
-import { FaUser, FaFileAlt, FaCalendar, FaUsers, FaBuilding, FaHome, FaChartLine, FaBriefcase, FaChartBar } from "react-icons/fa";
+import { FaUser, FaFileAlt, FaCalendar, FaUsers, FaBuilding, FaHome, FaChartLine, FaBriefcase, FaChartBar, FaRobot } from "react-icons/fa";
 
 import Profile from "./Profile";
 import CAFForm from "./CAFForm";
 import StudentInfo from "./StudentInfo";
 import CompanyInfo from "./CompanyInfo";
-import Events from "./Events";
-import Documents from "./Documents";
 import CommunityNew from "./CommunityNew";
 import CollegeHome from "./CollegeHome";
 import PlacementTracking from "./PlacementTracking";
@@ -15,6 +13,7 @@ import CompanyDrives from "./CompanyDrives";
 import InternshipTracking from "./InternshipTracking";
 import PlacementAnalytics from "./PlacementAnalytics";
 import AIChatbot from "./AIChatbot";
+import ResumeAnalyzer from "./ResumeAnalyzer";
 
 function CollegeDashboard() {
   return (
@@ -51,11 +50,8 @@ function CollegeDashboard() {
         <Link to="/college-dashboard/companies" className="menu-item">
           <FaBuilding /> <span>Company Information</span>
         </Link>
-        <Link to="/college-dashboard/documents" className="menu-item">
-          <FaFileAlt /> <span>Documents</span>
-        </Link>
-        <Link to="/college-dashboard/events" className="menu-item">
-          <FaCalendar /> <span>Events</span>
+        <Link to="/college-dashboard/resume-analyzer" className="menu-item">
+          <FaRobot /> <span>Resume Analyzer</span>
         </Link>
       </aside>
 
@@ -72,8 +68,7 @@ function CollegeDashboard() {
           <Route path="/caf-form" element={<CAFForm />} />
           <Route path="/students" element={<StudentInfo />} />
           <Route path="/companies" element={<CompanyInfo />} />
-          <Route path="/documents" element={<Documents />} />
-          <Route path="/events" element={<Events />} />
+          <Route path="/resume-analyzer" element={<ResumeAnalyzer />} />
         </Routes>
       </main>
 
