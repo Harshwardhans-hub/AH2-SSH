@@ -323,31 +323,7 @@ SSH-FINAL-PROTOTYPE/
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📄 License
 
-This project is licensed under the MIT License.
 
-## 👥 Authors
 
-- Your Name - Initial work
 
-## 🙏 Acknowledgments
-
-- Job data from LinkedIn, Remotive, Arbeitnow
-- Event data from Devfolio, Unstop, MLH
-- AI powered by Hugging Face
-- Icons from React Icons
-
-## 📞 Support
-
-For support, email your-email@example.com or create an issue in the repository.
-
-## 🔗 Links
-
-- [Demo Data Info](./DEMO_DATA_INFO.md)
-- [API Documentation](#api-endpoints)
-- [Contributing Guidelines](#contributing)
-
----
-
-Made with ❤️ for college placement management
